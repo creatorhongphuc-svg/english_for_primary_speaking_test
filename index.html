@@ -32,6 +32,14 @@
         }
         .animate-reveal { animation: revealUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
+        /* Shake animation for wrong password */
+        @keyframes shakeX {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake { animation: shakeX 0.35s ease-in-out; }
+
         .hint-pulse { animation: pulse-soft 2s infinite; }
         @keyframes pulse-soft { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.75; transform: scale(0.98); } }
     </style>
@@ -44,9 +52,14 @@
             <div class="bg-indigo-500 p-2 rounded-xl text-white shadow-sm"><i data-lucide="layers" class="w-5 h-5"></i></div>
             <h1 class="text-xl sm:text-2xl font-black text-indigo-600 tracking-tight">English Flashcards 5</h1>
         </div>
-        <button id="btnToggleAdmin" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-sm sm:text-base">
-            <i data-lucide="settings" class="w-4 h-4"></i><span id="toggleAdminText">Teacher's Corner</span>
-        </button>
+        <div class="flex items-center gap-2">
+            <button id="btnLockAdmin" class="hidden items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl font-bold transition-colors text-xs sm:text-sm" title="Lock Teacher's Corner">
+                <i data-lucide="lock" class="w-4 h-4"></i> <span class="hidden sm:inline">Lock</span>
+            </button>
+            <button id="btnToggleAdmin" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-sm sm:text-base">
+                <i data-lucide="settings" class="w-4 h-4"></i><span id="toggleAdminText">Teacher's Corner</span>
+            </button>
+        </div>
     </nav>
 
     <!-- STUDENT DASHBOARD & TEACHER'S CORNER -->
@@ -63,6 +76,62 @@
 
         <!-- 2. TEACHER'S CORNER -->
         <div id="adminPanel" class="hidden w-full pb-10">
+            
+            <!-- GITHUB CLOUD SYNC & EXPORT BAR -->
+            <div class="max-w-5xl mx-auto mb-6 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <span id="ghStatusDot" class="w-3 h-3 rounded-full bg-amber-400 shrink-0"></span>
+                        <div>
+                            <p id="ghStatusTitle" class="text-sm font-black text-slate-800">GitHub Auto-Sync: Not Configured</p>
+                            <p id="ghStatusDesc" class="text-xs font-semibold text-slate-500">Connect your GitHub repository to save all changes across every browser &amp; device.</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                        <button type="button" id="btnDownloadHtml" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs sm:text-sm rounded-xl flex items-center gap-1.5 transition-colors" title="Download updated index.html file to upload manually to GitHub">
+                            <i data-lucide="download" class="w-4 h-4"></i> <span>Download index.html</span>
+                        </button>
+                        <button type="button" id="btnToggleGhSetup" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs sm:text-sm rounded-xl flex items-center gap-1.5 shadow-sm transition-colors">
+                            <i data-lucide="github" class="w-4 h-4"></i> <span id="btnToggleGhSetupText">GitHub Sync Settings</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- COLLAPSIBLE GITHUB CONFIGURATION FORM -->
+                <div id="ghSetupDrawer" class="hidden border-t border-slate-100 bg-slate-50/80 px-5 py-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">GitHub Username</label>
+                            <input type="text" id="ghOwner" placeholder="e.g., your-username" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400 select-text">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Repository Name</label>
+                            <input type="text" id="ghRepo" placeholder="e.g., english-flashcards" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400 select-text">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Branch &amp; File</label>
+                            <div class="flex gap-1.5">
+                                <input type="text" id="ghBranch" value="main" placeholder="main" class="w-1/2 px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400 select-text">
+                                <input type="text" id="ghPath" value="index.html" placeholder="index.html" class="w-1/2 px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400 select-text">
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Personal Access Token (Stored locally only)</label>
+                            <div class="flex gap-2">
+                                <input type="password" id="ghToken" placeholder="ghp_... or github_pat_..." class="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400 select-text">
+                                <button type="button" id="btnSaveGhConfig" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-sm shrink-0 transition-colors">
+                                    Connect &amp; Sync
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold text-slate-500">
+                        <span>Your token is saved only in this browser's local storage and is never uploaded to GitHub.</span>
+                        <button type="button" id="btnDisconnectGh" class="hidden text-rose-600 hover:underline font-bold">Disconnect GitHub</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
                 <!-- LEFT COLUMN: ADD NEW FLASHCARD FORM -->
                 <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-lg border border-slate-100 h-fit">
@@ -187,6 +256,50 @@
         </div>
     </main>
 
+    <!-- PASSWORD MODAL FOR TEACHER'S CORNER -->
+    <div id="passwordModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div id="passwordModalBox" class="bg-white w-full max-w-sm rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 animate-reveal">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="bg-indigo-100 text-indigo-600 p-2.5 rounded-2xl">
+                        <i data-lucide="shield-check" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-black text-slate-800">Teacher's Corner</h3>
+                        <p class="text-xs font-semibold text-slate-500">Enter password to continue</p>
+                    </div>
+                </div>
+                <button type="button" id="btnClosePasswordModal" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="passwordForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Access Password</label>
+                    <div class="relative">
+                        <input type="password" id="inputAdminPassword" placeholder="Enter password..." autocomplete="current-password" class="w-full px-4 py-3 pr-11 rounded-xl border border-slate-300 font-bold text-slate-800 bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 select-text">
+                        <button type="button" id="btnTogglePasswordVisibility" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1" title="Show/Hide password">
+                            <i data-lucide="eye" id="passwordEyeIcon" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <p id="passwordErrorMsg" class="hidden text-xs font-bold text-rose-600 mt-1.5 flex items-center gap-1">
+                        <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> <span>Incorrect password. Please try again.</span>
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-2.5 pt-1">
+                    <button type="button" id="btnCancelPassword" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-sm rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm rounded-xl shadow-md shadow-indigo-200 transition-colors">
+                        Unlock
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- PRACTICE SCREEN (100% FIXED VIEWPORT - NO SCROLLING) -->
     <div id="lessonDetail" class="fixed inset-0 z-50 bg-sky-50 flex-col hidden h-[100dvh] overflow-hidden">
         
@@ -292,16 +405,17 @@
     </div>
 
     <!-- Floating Toast Notification -->
-    <div id="toastNotification" class="fixed bottom-5 right-5 z-[60] hidden items-center gap-2.5 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl text-sm font-bold transition-all">
+    <div id="toastNotification" class="fixed bottom-5 right-5 z-[80] hidden items-center gap-2.5 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl text-sm font-bold transition-all">
         <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 shrink-0"></i>
         <span id="toastMessage">Saved to library!</span>
     </div>
 
     <script>
         /* =======================================================
-           1. DEFAULT FLASHCARD DECKS
+           1. EMBEDDED DATA BLOCK (SYNCED WITH GITHUB REPOSITORY)
            ======================================================= */
-        const EMBEDDED_VERSION = 3;
+        /* __DATA_START__ */
+        const EMBEDDED_VERSION = 4;
         const EMBEDDED_LESSONS = [
             {
                 "id": 1,
@@ -381,6 +495,10 @@
                 "image": "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=600"
             }
         ];
+        /* __DATA_END__ */
+
+        const TEACHER_DEFAULT_PASSWORD = "123456789";
+        const GH_CONFIG_STORAGE_KEY = "flashcards_gh_sync_config_v1";
 
         // Fallback SVG when offline
         const FALLBACK_IMAGE = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
@@ -396,14 +514,36 @@
         let lessons = [...EMBEDDED_LESSONS];
         let currentUploadedImageBase64 = "";
         let isAdminView = false;
+        let isTeacherUnlocked = sessionStorage.getItem("teacher_corner_unlocked") === "true";
         let currentQuizWords = [];
         let currentQuizIndex = 0;
         let sessionScores = [];
         let cardStep = 0;
+        let isSyncingToGitHub = false;
 
         /* =======================================================
-           2. INDEXEDDB STORAGE
+           2. UTF-8 SAFE BASE64 HELPERS & INDEXEDDB
            ======================================================= */
+        function utf8ToBase64(str) {
+            const bytes = new TextEncoder().encode(str);
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        function base64ToUtf8(base64) {
+            const clean = base64.replace(/\s/g, '');
+            const binary = atob(clean);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return new TextDecoder('utf-8').decode(bytes);
+        }
+
         function openAppDB() {
             return new Promise((resolve, reject) => {
                 const req = indexedDB.open('English5GradeDB', 1);
@@ -442,33 +582,247 @@
             } catch (e) { return false; }
         }
 
-        function showToast(msg, isWarning = false) {
+        function showToast(msg, type = "success") {
             const toast = document.getElementById('toastNotification');
             const text = document.getElementById('toastMessage');
             const icon = toast.querySelector('i');
             text.textContent = msg;
-            if (isWarning) {
+
+            if (type === "warning") {
                 icon.setAttribute('data-lucide', 'alert-circle');
                 icon.className = "w-5 h-5 text-amber-400 shrink-0";
+            } else if (type === "syncing") {
+                icon.setAttribute('data-lucide', 'loader-2');
+                icon.className = "w-5 h-5 text-sky-400 shrink-0 animate-spin";
             } else {
                 icon.setAttribute('data-lucide', 'check-circle-2');
                 icon.className = "w-5 h-5 text-emerald-400 shrink-0";
             }
+
             toast.classList.remove('hidden');
             toast.classList.add('flex');
             lucide.createIcons();
             clearTimeout(window._toastTimer);
-            window._toastTimer = setTimeout(() => {
-                toast.classList.add('hidden');
-                toast.classList.remove('flex');
-            }, 3000);
+            if (type !== "syncing") {
+                window._toastTimer = setTimeout(() => {
+                    toast.classList.add('hidden');
+                    toast.classList.remove('flex');
+                }, 3800);
+            }
+        }
+
+        /* =======================================================
+           3. GITHUB CLOUD SYNC & HTML FILE EXPORT
+           ======================================================= */
+        function getGitHubConfig() {
+            try {
+                const raw = localStorage.getItem(GH_CONFIG_STORAGE_KEY);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) { return null; }
+        }
+
+        function saveGitHubConfig(cfg) {
+            localStorage.setItem(GH_CONFIG_STORAGE_KEY, JSON.stringify(cfg));
+        }
+
+        function detectGitHubRepoFromUrl() {
+            const host = window.location.hostname;
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            if (host.endsWith('.github.io')) {
+                const owner = host.replace('.github.io', '');
+                const repo = pathParts.length > 0 ? pathParts[0] : `${owner}.github.io`;
+                return { owner, repo, branch: 'main', path: 'index.html' };
+            }
+            return { owner: '', repo: '', branch: 'main', path: 'index.html' };
+        }
+
+        function updateGitHubStatusUI() {
+            const cfg = getGitHubConfig();
+            const dot = document.getElementById('ghStatusDot');
+            const title = document.getElementById('ghStatusTitle');
+            const desc = document.getElementById('ghStatusDesc');
+            const btnDisconnect = document.getElementById('btnDisconnectGh');
+
+            if (cfg && cfg.owner && cfg.repo && cfg.token) {
+                dot.className = "w-3 h-3 rounded-full bg-emerald-500 shrink-0";
+                title.textContent = `GitHub Auto-Sync Connected (${cfg.owner}/${cfg.repo})`;
+                desc.textContent = `All changes automatically commit to ${cfg.path} (${cfg.branch}) and update across all devices.`;
+                btnDisconnect.classList.remove('hidden');
+            } else {
+                dot.className = "w-3 h-3 rounded-full bg-amber-400 shrink-0";
+                title.textContent = "GitHub Auto-Sync: Not Configured";
+                desc.textContent = "Connect your GitHub repository or download index.html to save changes across all browsers.";
+                btnDisconnect.classList.add('hidden');
+            }
+        }
+
+        function loadGitHubFormFields() {
+            const saved = getGitHubConfig();
+            const detected = detectGitHubRepoFromUrl();
+            document.getElementById('ghOwner').value = (saved && saved.owner) || detected.owner;
+            document.getElementById('ghRepo').value = (saved && saved.repo) || detected.repo;
+            document.getElementById('ghBranch').value = (saved && saved.branch) || 'main';
+            document.getElementById('ghPath').value = (saved && saved.path) || 'index.html';
+            document.getElementById('ghToken').value = (saved && saved.token) || '';
+            updateGitHubStatusUI();
+        }
+
+        function buildUpdatedHtmlString(rawHtml, version) {
+            const safeJson = JSON.stringify(lessons, null, 12).replace(/<\/script>/gi, '<\\/script>');
+            const newBlock = `/* __DATA_START__ */\n        const EMBEDDED_VERSION = ${version};\n        const EMBEDDED_LESSONS = ${safeJson};\n        /* __DATA_END__ */`;
+
+            if (/\/\* __DATA_START__ \*\/[\s\S]*?\/\* __DATA_END__ \*\//.test(rawHtml)) {
+                return rawHtml.replace(/\/\* __DATA_START__ \*\/[\s\S]*?\/\* __DATA_END__ \*\//, newBlock);
+            }
+            return null;
+        }
+
+        async function pushLessonsToGitHub(version, customActionMsg = null) {
+            const cfg = getGitHubConfig();
+            if (!cfg || !cfg.owner || !cfg.repo || !cfg.token) {
+                showToast(customActionMsg ? `${customActionMsg} (Local only — connect GitHub or download index.html)` : "Saved locally — connect GitHub or download index.html to sync!", "warning");
+                return false;
+            }
+
+            if (isSyncingToGitHub) return false;
+            isSyncingToGitHub = true;
+            showToast("Syncing directly to GitHub...", "syncing");
+
+            const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${cfg.path.replace(/^\/+/, '')}`;
+            const headers = {
+                'Authorization': `Bearer ${cfg.token}`,
+                'Accept': 'application/vnd.github+json',
+                'Content-Type': 'application/json'
+            };
+
+            try {
+                // 1. Fetch latest file SHA & content from GitHub
+                const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(cfg.branch || 'main')}&t=${Date.now()}`, { headers });
+                if (!getRes.ok) {
+                    const errData = await getRes.json().catch(() => ({}));
+                    throw new Error(errData.message || `GitHub HTTP ${getRes.status}`);
+                }
+                const fileData = await getRes.json();
+                const currentHtml = base64ToUtf8(fileData.content);
+                const updatedHtml = buildUpdatedHtmlString(currentHtml, version);
+
+                if (!updatedHtml) {
+                    throw new Error("Could not locate data markers in target HTML file.");
+                }
+
+                // 2. Commit updated index.html back to GitHub
+                const putRes = await fetch(apiUrl, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({
+                        message: `Update flashcards (${lessons.length} cards) via Teacher's Corner`,
+                        content: utf8ToBase64(updatedHtml),
+                        sha: fileData.sha,
+                        branch: cfg.branch || 'main'
+                    })
+                });
+
+                if (!putRes.ok) {
+                    const errData = await putRes.json().catch(() => ({}));
+                    throw new Error(errData.message || `Commit failed (${putRes.status})`);
+                }
+
+                isSyncingToGitHub = false;
+                updateGitHubStatusUI();
+                showToast(customActionMsg ? `${customActionMsg} Synced to GitHub!` : "Synced to GitHub! Live in ~30 seconds.");
+                return true;
+            } catch (err) {
+                isSyncingToGitHub = false;
+                console.error("GitHub Sync Error:", err);
+                showToast(`GitHub sync failed: ${err.message}`, "warning");
+                return false;
+            }
         }
 
         async function persistAllLessons(customSuccessMsg = null) {
             const version = Date.now();
             await dbSet('lessonsData', { version, lessons });
-            showToast(customSuccessMsg || "Saved to library!");
+            await pushLessonsToGitHub(version, customSuccessMsg);
         }
+
+        // Download clean updated index.html file (Alternative manual method)
+        document.getElementById('btnDownloadHtml').addEventListener('click', async () => {
+            try {
+                let rawHtml = "";
+                try {
+                    const res = await fetch(`${window.location.pathname}?t=${Date.now()}`);
+                    if (res.ok) rawHtml = await res.text();
+                } catch (e) {}
+
+                if (!rawHtml || !rawHtml.includes('/* __DATA_START__ */')) {
+                    // Fallback: clone document and clear runtime rendered containers
+                    const clone = document.documentElement.cloneNode(true);
+                    const idsToClear = ['topicsGrid', 'adminLessonList', 'selectTopic', 'filterAdminTopic', 'selectRenameTarget', 'wordAnalysis'];
+                    idsToClear.forEach(id => {
+                        const el = clone.querySelector('#' + id);
+                        if (el) el.innerHTML = '';
+                    });
+                    rawHtml = "<!DOCTYPE html>\n" + clone.outerHTML;
+                }
+
+                const version = Date.now();
+                const updatedHtml = buildUpdatedHtmlString(rawHtml, version);
+                if (!updatedHtml) {
+                    alert("Unable to generate index.html export.");
+                    return;
+                }
+
+                const blob = new Blob([updatedHtml], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'index.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast("Downloaded index.html! Upload it to GitHub to update.");
+            } catch (err) {
+                alert("Export error: " + err.message);
+            }
+        });
+
+        document.getElementById('btnToggleGhSetup').addEventListener('click', () => {
+            const drawer = document.getElementById('ghSetupDrawer');
+            drawer.classList.toggle('hidden');
+            loadGitHubFormFields();
+        });
+
+        document.getElementById('btnSaveGhConfig').addEventListener('click', async () => {
+            const owner = document.getElementById('ghOwner').value.trim();
+            const repo = document.getElementById('ghRepo').value.trim();
+            const branch = document.getElementById('ghBranch').value.trim() || 'main';
+            const path = document.getElementById('ghPath').value.trim() || 'index.html';
+            const token = document.getElementById('ghToken').value.trim();
+
+            if (!owner || !repo || !token) {
+                alert("Please enter GitHub Username, Repository Name, and Personal Access Token!");
+                return;
+            }
+
+            saveGitHubConfig({ owner, repo, branch, path, token });
+            updateGitHubStatusUI();
+
+            const ok = await pushLessonsToGitHub(Date.now(), "GitHub connected!");
+            if (ok) {
+                document.getElementById('ghSetupDrawer').classList.add('hidden');
+            }
+        });
+
+        document.getElementById('btnDisconnectGh').addEventListener('click', () => {
+            if (confirm("Disconnect GitHub Auto-Sync from this browser?")) {
+                localStorage.removeItem(GH_CONFIG_STORAGE_KEY);
+                document.getElementById('ghToken').value = '';
+                updateGitHubStatusUI();
+                showToast("Disconnected from GitHub.", "warning");
+            }
+        });
 
         async function initStorage() {
             const savedBundle = await dbGet('lessonsData');
@@ -479,12 +833,116 @@
                 await dbSet('lessonsData', { version: EMBEDDED_VERSION, lessons });
             }
 
+            loadGitHubFormFields();
             renderTopics();
             populateTopicDropdowns();
         }
 
         /* =======================================================
-           3. IMAGE UPLOAD & CLIPBOARD PASTE (CTRL + V)
+           4. PASSWORD PROTECTION FOR TEACHER'S CORNER
+           ======================================================= */
+        function openPasswordModal() {
+            const modal = document.getElementById('passwordModal');
+            const input = document.getElementById('inputAdminPassword');
+            const err = document.getElementById('passwordErrorMsg');
+            input.value = '';
+            input.type = 'password';
+            document.getElementById('passwordEyeIcon').setAttribute('data-lucide', 'eye');
+            err.classList.add('hidden');
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+            setTimeout(() => input.focus(), 50);
+        }
+
+        function closePasswordModal() {
+            const modal = document.getElementById('passwordModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function enterTeacherCorner() {
+            isAdminView = true;
+            document.getElementById('studentDashboard').classList.add('hidden');
+            document.getElementById('adminPanel').classList.remove('hidden');
+            document.getElementById('toggleAdminText').textContent = "Student View";
+            document.getElementById('btnLockAdmin').classList.remove('hidden');
+            document.getElementById('btnLockAdmin').classList.add('flex');
+
+            closeRenameTopicPanel();
+            loadGitHubFormFields();
+            populateTopicDropdowns();
+            renderAdminLessons();
+            lucide.createIcons();
+        }
+
+        function exitTeacherCorner() {
+            isAdminView = false;
+            document.getElementById('adminPanel').classList.add('hidden');
+            document.getElementById('studentDashboard').classList.remove('hidden');
+            document.getElementById('toggleAdminText').textContent = "Teacher's Corner";
+            document.getElementById('btnLockAdmin').classList.add('hidden');
+            document.getElementById('btnLockAdmin').classList.remove('flex');
+            renderTopics();
+        }
+
+        document.getElementById('passwordForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const entered = document.getElementById('inputAdminPassword').value;
+            if (entered === TEACHER_DEFAULT_PASSWORD) {
+                isTeacherUnlocked = true;
+                sessionStorage.setItem("teacher_corner_unlocked", "true");
+                closePasswordModal();
+                enterTeacherCorner();
+            } else {
+                const err = document.getElementById('passwordErrorMsg');
+                const box = document.getElementById('passwordModalBox');
+                err.classList.remove('hidden');
+                box.classList.remove('animate-shake');
+                void box.offsetWidth;
+                box.classList.add('animate-shake');
+                document.getElementById('inputAdminPassword').select();
+            }
+        });
+
+        document.getElementById('btnTogglePasswordVisibility').addEventListener('click', () => {
+            const input = document.getElementById('inputAdminPassword');
+            const eye = document.getElementById('passwordEyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                eye.setAttribute('data-lucide', 'eye-off');
+            } else {
+                input.type = 'password';
+                eye.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        });
+
+        document.getElementById('btnClosePasswordModal').addEventListener('click', closePasswordModal);
+        document.getElementById('btnCancelPassword').addEventListener('click', closePasswordModal);
+
+        document.getElementById('btnToggleAdmin').addEventListener('click', () => {
+            if (!isAdminView) {
+                if (isTeacherUnlocked) {
+                    enterTeacherCorner();
+                } else {
+                    openPasswordModal();
+                }
+            } else {
+                exitTeacherCorner();
+            }
+        });
+
+        document.getElementById('btnLockAdmin').addEventListener('click', () => {
+            isTeacherUnlocked = false;
+            sessionStorage.removeItem("teacher_corner_unlocked");
+            exitTeacherCorner();
+            showToast("Teacher's Corner locked.");
+        });
+
+        /* =======================================================
+           5. IMAGE UPLOAD & CLIPBOARD PASTE (CTRL + V)
            ======================================================= */
         function compressImageToDataURL(fileOrBlob) {
             return new Promise((resolve, reject) => {
@@ -598,7 +1056,7 @@
         });
 
         /* =======================================================
-           4. TOPIC DROPDOWNS, RENAME DECK & CARD LIBRARY
+           6. TOPIC DROPDOWNS, RENAME DECK & CARD LIBRARY
            ======================================================= */
         function getUniqueTopics() {
             const map = new Map();
@@ -623,7 +1081,6 @@
 
             const topics = getUniqueTopics();
 
-            // 1. Add Card Form Topic Dropdown
             selectTopic.innerHTML = '';
             topics.forEach(t => {
                 const opt = document.createElement('option');
@@ -646,7 +1103,6 @@
             }
             toggleNewTopicInput();
 
-            // 2. Card Library Filter Dropdown
             filterAdminTopic.innerHTML = '<option value="ALL">All Decks</option>';
             topics.forEach(t => {
                 const opt = document.createElement('option');
@@ -658,7 +1114,6 @@
                 filterAdminTopic.value = previousFilter;
             }
 
-            // 3. Rename Deck Target Dropdown
             selectRenameTarget.innerHTML = '';
             topics.forEach(t => {
                 const opt = document.createElement('option');
@@ -704,11 +1159,10 @@
             }
         });
 
-        // --- RENAME EXISTING FLASHCARD DECK ---
         function openRenameTopicPanel() {
             const topics = getUniqueTopics();
             if (topics.length === 0) {
-                showToast("No decks available to rename.", true);
+                showToast("No decks available to rename.", "warning");
                 return;
             }
             populateTopicDropdowns();
@@ -799,7 +1253,6 @@
             }
         });
 
-        // --- ADD NEW FLASHCARD ---
         document.getElementById('addLessonForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -882,7 +1335,7 @@
         };
 
         /* =======================================================
-           5. STUDENT TOPIC DASHBOARD
+           7. STUDENT TOPIC DASHBOARD
            ======================================================= */
         function renderTopics() {
             const topicsGrid = document.getElementById('topicsGrid');
@@ -921,7 +1374,7 @@
         }
 
         /* =======================================================
-           6. 3-STEP FLASHCARD FLOW & PRONUNCIATION SCORING
+           8. 3-STEP FLASHCARD FLOW & PRONUNCIATION SCORING
            ======================================================= */
         let globalMediaStream = null;
         let mediaRecorder = null;
@@ -1208,23 +1661,6 @@
             document.getElementById('mainContent').classList.remove('hidden');
             renderTopics();
         }
-
-        document.getElementById('btnToggleAdmin').addEventListener('click', () => {
-            isAdminView = !isAdminView;
-            if (isAdminView) {
-                document.getElementById('studentDashboard').classList.add('hidden');
-                document.getElementById('adminPanel').classList.remove('hidden');
-                document.getElementById('toggleAdminText').textContent = "Student View";
-                closeRenameTopicPanel();
-                populateTopicDropdowns();
-                renderAdminLessons();
-            } else {
-                document.getElementById('adminPanel').classList.add('hidden');
-                document.getElementById('studentDashboard').classList.remove('hidden');
-                document.getElementById('toggleAdminText').textContent = "Teacher's Corner";
-                renderTopics();
-            }
-        });
 
         // Initialize app
         initStorage();
