@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grade 5 English Flashcards</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -981,12 +984,30 @@
             }
         }
 
+        let currentDataVersion = EMBEDDED_VERSION;
+        let lastKnownRemoteVersion = EMBEDDED_VERSION;
+        let lastRemoteCheckTime = 0;
+        let isCheckingRemoteUpdate = false;
+
         async function persistAllLessons(customSuccessMsg = null) {
             const version = Date.now();
-            await dbSet('lessonsData', { version, lessons });
+            currentDataVersion = version;
+            await dbSet('lessonsData', {
+                version,
+                lastSyncedEmbeddedVersion: lastKnownRemoteVersion,
+                lessons
+            });
 
             const savedLocally = await writeLessonsToLocalFile(version, customSuccessMsg, true);
-            await pushLessonsToGitHub(version, customSuccessMsg, savedLocally);
+            const pushedGh = await pushLessonsToGitHub(version, customSuccessMsg, savedLocally);
+            if (savedLocally || pushedGh) {
+                lastKnownRemoteVersion = version;
+                await dbSet('lessonsData', {
+                    version,
+                    lastSyncedEmbeddedVersion: version,
+                    lessons
+                });
+            }
         }
 
         document.getElementById('btnLinkLocalFile').addEventListener('click', async () => {
@@ -1111,13 +1132,157 @@
             }
         });
 
+        function parseEmbeddedDataFromHtml(rawHtml) {
+            if (!rawHtml || !rawHtml.includes('/* __DATA_START__ */')) return null;
+            const blockMatch = rawHtml.match(/\/\* __DATA_START__ \*\/([\s\S]*?)\/\* __DATA_END__ \*\//);
+            if (!blockMatch) return null;
+
+            const block = blockMatch[1];
+            const verMatch = block.match(/const\s+EMBEDDED_VERSION\s*=\s*(\d+)\s*;/);
+            const lessonsMatch = block.match(/const\s+EMBEDDED_LESSONS\s*=\s*(\[[\s\S]*\])\s*;/);
+            if (!verMatch || !lessonsMatch) return null;
+
+            try {
+                const parsedVersion = Number(verMatch[1]);
+                const rawJson = lessonsMatch[1].replace(/<\\\/script>/gi, '<' + '/script>');
+                const parsedLessons = JSON.parse(rawJson);
+                if (Number.isFinite(parsedVersion) && Array.isArray(parsedLessons)) {
+                    return { version: parsedVersion, lessons: parsedLessons };
+                }
+            } catch (e) {
+                console.warn("Failed to parse remote embedded data:", e);
+            }
+            return null;
+        }
+
+        async function fetchRemoteFlashcardsBundle() {
+            // 1. If GitHub sync is configured on this browser, check GitHub API first (zero CDN delay)
+            const cfg = getGitHubConfig();
+            if (cfg && cfg.owner && cfg.repo && cfg.token) {
+                try {
+                    const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${(cfg.path || 'index.html').replace(/^\/+/, '')}?ref=${encodeURIComponent(cfg.branch || 'main')}&_t=${Date.now()}`;
+                    const ghRes = await fetch(apiUrl, {
+                        cache: 'no-store',
+                        headers: {
+                            'Authorization': `Bearer ${cfg.token}`,
+                            'Accept': 'application/vnd.github+json'
+                        }
+                    });
+                    if (ghRes.ok) {
+                        const fileData = await ghRes.json();
+                        if (fileData && fileData.content) {
+                            const decodedHtml = base64ToUtf8(fileData.content);
+                            const parsed = parseEmbeddedDataFromHtml(decodedHtml);
+                            if (parsed) return parsed;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("GitHub API background check skipped:", e);
+                }
+            }
+
+            // 2. Fetch fresh index.html directly from host server bypassing HTTP cache
+            if (window.location.protocol.startsWith('http')) {
+                try {
+                    const sep = window.location.search ? '&' : '?';
+                    const freshUrl = `${window.location.pathname}${window.location.search}${sep}_nocache=${Date.now()}`;
+                    const res = await fetch(freshUrl, {
+                        cache: 'no-store',
+                        headers: {
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache'
+                        }
+                    });
+                    if (res.ok) {
+                        const freshHtml = await res.text();
+                        const parsed = parseEmbeddedDataFromHtml(freshHtml);
+                        if (parsed) return parsed;
+                    }
+                } catch (e) {
+                    console.warn("Server background update check skipped:", e);
+                }
+            }
+
+            return null;
+        }
+
+        async function syncLatestDataFromServer(force = false) {
+            const now = Date.now();
+            if (isCheckingRemoteUpdate) return false;
+            if (!force && (now - lastRemoteCheckTime < 15000)) return false;
+
+            isCheckingRemoteUpdate = true;
+            lastRemoteCheckTime = now;
+
+            try {
+                const remoteBundle = await fetchRemoteFlashcardsBundle();
+                if (!remoteBundle) return false;
+
+                const { version: remoteVersion, lessons: remoteLessons } = remoteBundle;
+                const serverChanged = remoteVersion !== lastKnownRemoteVersion;
+                const isNewerThanCurrent = remoteVersion > currentDataVersion;
+
+                if (serverChanged && (isNewerThanCurrent || currentDataVersion === lastKnownRemoteVersion)) {
+                    // Avoid disrupting active recording or active card editing
+                    if (isRecording || editingLessonId !== null) {
+                        return false;
+                    }
+
+                    lessons = remoteLessons;
+                    currentDataVersion = remoteVersion;
+                    lastKnownRemoteVersion = remoteVersion;
+
+                    await dbSet('lessonsData', {
+                        version: remoteVersion,
+                        lastSyncedEmbeddedVersion: remoteVersion,
+                        lessons
+                    });
+
+                    renderTopics();
+                    populateTopicDropdowns();
+                    if (isAdminView) {
+                        renderAdminLessons();
+                    }
+                    showToast("Updated with latest flashcards!");
+                    return true;
+                }
+            } finally {
+                isCheckingRemoteUpdate = false;
+            }
+            return false;
+        }
+
         async function initStorage() {
             const savedBundle = await dbGet('lessonsData');
-            if (savedBundle && Array.isArray(savedBundle.lessons) && savedBundle.version > EMBEDDED_VERSION) {
-                lessons = savedBundle.lessons;
+            const prevSyncedEmbedded = (savedBundle && typeof savedBundle.lastSyncedEmbeddedVersion === 'number')
+                ? savedBundle.lastSyncedEmbeddedVersion
+                : null;
+
+            if (savedBundle && Array.isArray(savedBundle.lessons)) {
+                const embeddedUpdated = prevSyncedEmbedded !== null && EMBEDDED_VERSION !== prevSyncedEmbedded;
+                if (!embeddedUpdated && savedBundle.version > EMBEDDED_VERSION) {
+                    lessons = savedBundle.lessons;
+                    currentDataVersion = savedBundle.version;
+                    lastKnownRemoteVersion = prevSyncedEmbedded !== null ? prevSyncedEmbedded : EMBEDDED_VERSION;
+                } else {
+                    lessons = [...EMBEDDED_LESSONS];
+                    currentDataVersion = EMBEDDED_VERSION;
+                    lastKnownRemoteVersion = EMBEDDED_VERSION;
+                    await dbSet('lessonsData', {
+                        version: EMBEDDED_VERSION,
+                        lastSyncedEmbeddedVersion: EMBEDDED_VERSION,
+                        lessons
+                    });
+                }
             } else {
                 lessons = [...EMBEDDED_LESSONS];
-                await dbSet('lessonsData', { version: EMBEDDED_VERSION, lessons });
+                currentDataVersion = EMBEDDED_VERSION;
+                lastKnownRemoteVersion = EMBEDDED_VERSION;
+                await dbSet('lessonsData', {
+                    version: EMBEDDED_VERSION,
+                    lastSyncedEmbeddedVersion: EMBEDDED_VERSION,
+                    lessons
+                });
             }
 
             const savedHandle = await dbGet('localIndexFileHandle');
@@ -1133,7 +1298,20 @@
             loadGitHubFormFields();
             renderTopics();
             populateTopicDropdowns();
+
+            // Automatically check server / GitHub for newer flashcards right after initial render
+            syncLatestDataFromServer(true);
         }
+
+        // Automatically check for fresh data when user returns to this browser tab/window
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                syncLatestDataFromServer(false);
+            }
+        });
+        window.addEventListener('focus', () => {
+            syncLatestDataFromServer(false);
+        });
 
         /* =======================================================
            4. PASSWORD PROTECTION FOR TEACHER'S CORNER
