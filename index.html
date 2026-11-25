@@ -42,6 +42,41 @@
             40%, 80% { transform: translateX(8px); }
         }
         .animate-shake { animation: shakeX 0.35s ease-in-out; }
+
+        /* Subtle copyright watermark across all views */
+        .copyright-watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 14px;
+            z-index: 60;
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Nunito', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: rgba(71, 85, 105, 0.42);
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.75);
+            white-space: nowrap;
+        }
+        @media (max-width: 640px) {
+            .copyright-watermark {
+                font-size: 10px;
+                bottom: 6px;
+                right: 10px;
+            }
+        }
+        @media print {
+            .copyright-watermark {
+                position: fixed;
+                bottom: 8px;
+                right: 12px;
+                color: rgba(71, 85, 105, 0.45) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
     </style>
 </head>
 <body class="bg-sky-50 min-h-screen flex flex-col font-sans m-0 p-0 select-none">
@@ -416,6 +451,9 @@
             </button>
         </div>
     </div>
+
+    <!-- Copyright Watermark (Visible across all screens) -->
+    <div id="copyrightWatermark" class="copyright-watermark" aria-hidden="true">design by Nguyen Thi Tuyet Nhung - Minh Tan B</div>
 
     <!-- Floating Toast Notification -->
     <div id="toastNotification" class="fixed bottom-5 right-5 z-[80] hidden items-center gap-2.5 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl text-sm font-bold transition-all">
